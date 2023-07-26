@@ -21,14 +21,14 @@ RUN . /miniconda/etc/profile.d/conda.sh && \
     rm -rf /miniconda/pkgs
 
 RUN . /miniconda/etc/profile.d/conda.sh && \
-    conda install gdal -y && \
+    conda install gdal pyarrow -y && \
+    pip install geopandas --no-cache-dir && \
     conda clean -a -y && \
     rm -rf /miniconda/pkgs
 
 RUN . /miniconda/etc/profile.d/conda.sh && \
     pip install -U openmim --no-cache-dir && \
     mim install mmengine "mmcv>=2.0.0"  --no-cache-dir
-
 
 RUN . /miniconda/etc/profile.d/conda.sh && \
     pip install "mmsegmentation>=1.0.0" mmdet --no-cache-dir
