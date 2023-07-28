@@ -7,7 +7,7 @@ import pandas as pd
 from shapely import wkt
 from geoai.db.postgres import get_connection
 import os
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 VERSION = 'V3'
 GBF_WORKDIR = config.WORK_DIR / 'google-building-footprint'
@@ -33,9 +33,13 @@ def main():
     # for i, url in enumerate(urls):
     #    table_names.append(insert_tile(url))
 
-    pool = ProcessPoolExecutor(max_workers=min(os.cpu_count(), 12))
-    table_names = pool.map(insert_tile, urls)
-    pool.shutdown()
+    with ProcessPoolExecutor(max_workers=min(os.cpu_count(), 12)) as pool:
+        futures = [pool.submit(insert_tile, url) for url in urls]
+        table_names = []
+        for i, future in enumerate(as_completed(futures)):
+            print(f"Ingested table : {i}/{len(futures)}", end='\r')
+            table_name = future.result()  
+            table_names.append(table_name)
 
     create_view(table_names)
 
