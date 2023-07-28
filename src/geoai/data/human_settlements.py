@@ -3,61 +3,123 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 from pathlib import Path
 from pyproj import CRS
+from osgeo import gdal
+from geoai.data.image import Image
+from shapely.geometry import box
+from geoai.db.postgres import get_connection
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
-def create_clusters_from_building_footprints(data_store: Path, roi: Polygon, roi_crs: CRS):
-    bf_tiles = gpd.read_file(data_store / 'tiles.geojson')
 
-    file_store = []
-    roi_4326 = gpd.GeoSeries([roi], crs=roi_crs).to_crs(4326).geometry.values[0]
-    for tile_id in bf_tiles[bf_tiles.intersects(roi_4326)]['tile_id']:
-        file_store.extend(data_store.glob(f'v3/feather/{tile_id}_buildings_*.feather'))
-    print("Read files", file_store)
+def get_human_settlements_from_sentinel_image(image_path: Path, **kwargs):
+    """
+    This Code creates human settlements from building footprint data for an  input sentinel image.
 
-    df_store = []
-    for file in file_store:
-        gdf = gpd.read_feather(file, columns=["geometry"])
-        df_store.append(
-            gdf[gdf.intersects(roi_4326)]
-        )
-    gdf = gpd.GeoDataFrame(pd.concat(df_store).reset_index(drop=True), crs=4326)
+    for example:
+    df = get_human_settlements('/home/sandeep/workspace/data/human-settlements/S2B_MSIL2A_20230518T050659_N0509_R019_T43PGQ_20230518T091909.SAFE')
 
-    print('Project')
-    gdf_prj = gdf.to_crs(roi_crs)
-    del gdf
+    """
+    ds = gdal.Open(f'{image_path}/MTD_MSIL2A.xml')
+    ds_RGB = gdal.Open(ds.GetSubDatasets()[-1][0])
+    im = Image.from_gdal(ds_RGB)
+    gdf = gpd.GeoDataFrame(geometry=[im.bbox], crs=im.crs)
+    return get_human_settlements_from_df(gdf, **kwargs)
 
-    buffer_distance = 25 # meters
 
-    print('Buffer')
-    # Buffer to convert buildings to clusters
-    gdf_prj['geometry'] = gdf_prj.buffer(buffer_distance)
+def remove_holes(geom, area):
+    holes = []
+    for hole in geom.interiors:
+        if Polygon(hole).area > area:
+            holes.append(hole)
+    return Polygon(geom.exterior, holes)
 
-    print('Flatten out clusters')
-    # Flatten out clusters
-    gdf_cluster = gdf_prj.dissolve().explode(index_parts=False).reset_index(drop=True)
-    del gdf_prj
-    len(gdf_cluster)
+def get_dataframe(query: str):
+    with get_connection() as conn:
+        return gpd.read_postgis(query, con=conn, geom_col='geometry')
 
-    print('Remove Stray holes')
-    # Remove Stray holes
-    def remove_holes(geom):
-        holes = []
-        for hole in geom.interiors:
-            if Polygon(hole).area > buffer_distance*buffer_distance*4:
-                holes.append(hole)
-        return Polygon(geom.exterior, holes)
+def get_human_settlements_from_df(
+        roi_df: gpd.GeoDataFrame, 
+        grid_size: int=10000, # meters
+        buffer_distance: int = 25, # meters
+        table_name: str ='gbf_all',
+        max_workers: int=None,
+        simplification_tolerance=10
+    ):
+    """
+    roi_df should be in projected coordinate system.
+    """
+    bounds = roi_df.total_bounds
+    roi_crs = roi_df.crs.to_epsg()
+    ymins = np.arange(bounds[1], bounds[3], grid_size)
+    xmins = np.arange(bounds[0], bounds[2], grid_size)
+    print(f"Total windows : {len(ymins)*len(xmins)}")
 
-    gdf_cluster['geometry'] = gdf_cluster['geometry'].apply(remove_holes)
+    if max_workers is None:
+        max_workers = min(os.cpu_count(), 12)
 
-    print('Reverse buffer')
-    # Reverse buffer
-    gdf_cluster = gdf_cluster.explode(index_parts=False).reset_index(drop=True)
-    gdf_cluster['geometry'] = gdf_cluster.buffer(-buffer_distance/2)
-    len(gdf_cluster)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = []
+        counter = 0
+        for ymin in ymins:
+            for xmin in xmins:
+                counter+=1
+                window_bbox = box(xmin, ymin, xmin+grid_size, ymin+grid_size)
+                query = f"""
+                SELECT 
+                    (ST_DUMP(ST_UNION(
+                        ST_Buffer(
+                            ST_SimplifyPreserveTopology(
+                                ST_Transform(
+                                    geometry,
+                                    {roi_crs}
+                                ),
+                                {simplification_tolerance}
+                            ),
+                            {buffer_distance}
+                        )
+                    ))).geom AS geometry
+                FROM 
+                    {table_name}
+                WHERE
+                    ST_Intersects(
+                        geometry,
+                        ST_Transform(
+                            ST_GeomFromText('{window_bbox.wkt}', {roi_crs}),
+                            4326
+                        )
+                    )
+                """
+                future = pool.submit(get_dataframe, query)
+                futures.append(future)
+    
+        print(f"Reading total windows {len(futures)}")
+        df_store = []
+        for i, future in enumerate(as_completed(futures)):
+            print(f"Read window : {i}/{len(futures)}", end='\r')
+            df = future.result()     
+            if len(df) > 0:
+                df_store.append(df)
+        print(f"Read all windows: {len(futures)}              ")
 
-    print('Remove stray buildings not visible in Sentinel')
+    print("Concat data")
+    if not df_store:
+        return gpd.GeoDataFrame()
+    df = gpd.GeoDataFrame(pd.concat(df_store), crs=roi_crs)
+
+    print("Remove holes, rows:", len(df))
+    df['geometry'] = df['geometry'].apply(lambda x: remove_holes(x, buffer_distance*buffer_distance*4))
+
+    print("Dissolve to merge windows, rows:", len(df))
+    df = df.dissolve().explode(index_parts=False).reset_index(drop=True)
+
+    print("Reverse buffer, rows:", len(df))
+    df['geometry'] = df.buffer(-buffer_distance/2)
+
+    print("Remove stray buildings not visible in Sentinel, rows:", len(df))
     # Remove stray buildings not visible in Sentinel
-    gdf_cluster = gdf_cluster.explode(index_parts=False).reset_index(drop=True)
-    gdf_cluster = gdf_cluster[gdf_cluster.buffer(-buffer_distance).area > (buffer_distance*buffer_distance*4)]
-    len(gdf_cluster)
+    df = df.explode(index_parts=False).reset_index(drop=True)
+    df = df[df.buffer(-buffer_distance).area > (buffer_distance*buffer_distance*4)]
 
-    return gdf_cluster
+    print("Done, rows:", len(df))
+    return df
