@@ -1,11 +1,11 @@
 from osgeo import gdal
 from pathlib import Path
-from dataclasses import dataclass
 from pyproj import CRS, Transformer
 from shapely.geometry import box, Polygon
 from shapely.ops import transform
 
-@dataclass
+
+
 class Image():
     ds: gdal.Dataset
 
@@ -56,3 +56,34 @@ class Image():
 
     def save(self, path: Path):
         pass
+
+    def get_indexer(self, tile_size: int):
+        return ImageTileIndexer(self, tile_size)
+
+
+class ImageTileIndexer():
+    def __init__(self, image: Image, tile_size: int) -> None:
+        self.image = image
+        self.tile_size = tile_size
+
+    def __len__(self):
+        return self.nrows*self.ncols
+    
+    def __getitem__(self, index):
+        row, col = self.index_to_row_col(index)
+        bounds = 
+        return {
+            'index': index,
+            'row': row,
+            'col': col,
+            'bounds': 
+        }
+
+    def index_to_row_col(self, index: int):
+        return int(index // self.ncols), index % self.ncols
+
+    def get_bounds(self, row, col):
+        se
+
+    def get_valid_indexes(self, ):
+        
