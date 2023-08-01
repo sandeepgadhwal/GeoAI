@@ -1,5 +1,6 @@
 from pathlib import Path
 from torch.utils.data import Dataset, ConcatDataset
+from geoai.data.human_settlements.utils import get_human_settlements_from_sentinel_image
 
 
 class HumanSettlementsDataset(ConcatDataset):

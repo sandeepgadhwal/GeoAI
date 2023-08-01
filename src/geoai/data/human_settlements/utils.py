@@ -3,7 +3,7 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 from pathlib import Path
 from osgeo import gdal
-from geoai.data.image import Image
+from geoai.data.utils.image import Image
 from shapely.geometry import box
 from geoai.db.postgres import get_connection
 import numpy as np
@@ -122,5 +122,3 @@ def get_human_settlements_from_df(
 
     print("Done, rows:", len(df))
     return df
-
-class 

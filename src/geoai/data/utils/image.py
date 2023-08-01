@@ -71,19 +71,19 @@ class ImageTileIndexer():
     
     def __getitem__(self, index):
         row, col = self.index_to_row_col(index)
-        bounds = 
-        return {
-            'index': index,
-            'row': row,
-            'col': col,
-            'bounds': 
-        }
+        # bounds = 
+        # return {
+        #     'index': index,
+        #     'row': row,
+        #     'col': col,
+        #     'bounds': 
+        # }
 
     def index_to_row_col(self, index: int):
         return int(index // self.ncols), index % self.ncols
 
     def get_bounds(self, row, col):
-        se
+        pass
 
     def get_valid_indexes(self, ):
-        
+        pass
