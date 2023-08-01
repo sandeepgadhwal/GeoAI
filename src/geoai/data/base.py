@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset
+
 from geoai.data.utils import TileIndexer
+
 
 class TileDataset(Dataset):
     def __init__(self) -> None:

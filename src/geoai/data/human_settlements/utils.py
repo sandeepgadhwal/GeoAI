@@ -1,14 +1,16 @@
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Polygon
-from pathlib import Path
-from osgeo import gdal
-from geoai.data.utils.image import Image
-from shapely.geometry import box
-from geoai.db.postgres import get_connection
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
+# Standard Library
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from osgeo import gdal
+from shapely.geometry import Polygon, box
+
+from geoai.data.utils.image import Image
+from geoai.db.postgres import get_connection
 
 
 def get_human_settlements_from_sentinel_image(image_path: Path, **kwargs):
@@ -19,7 +21,7 @@ def get_human_settlements_from_sentinel_image(image_path: Path, **kwargs):
     df = get_human_settlements('/home/sandeep/workspace/data/human-settlements/S2B_MSIL2A_20230518T050659_N0509_R019_T43PGQ_20230518T091909.SAFE')
 
     """
-    ds = gdal.Open(f'{image_path}/MTD_MSIL2A.xml')
+    ds = gdal.Open(f"{image_path}/MTD_MSIL2A.xml")
     ds_RGB = gdal.Open(ds.GetSubDatasets()[-1][0])
     im = Image.from_gdal(ds_RGB)
     gdf = gpd.GeoDataFrame(geometry=[im.bbox], crs=im.crs)
@@ -33,18 +35,20 @@ def remove_holes(geom, area):
             holes.append(hole)
     return Polygon(geom.exterior, holes)
 
+
 def get_dataframe(query: str):
     with get_connection() as conn:
-        return gpd.read_postgis(query, con=conn, geom_col='geometry')
+        return gpd.read_postgis(query, con=conn, geom_col="geometry")
+
 
 def get_human_settlements_from_df(
-        roi_df: gpd.GeoDataFrame, 
-        grid_size: int=10000, # meters
-        buffer_distance: int = 25, # meters
-        table_name: str ='gbf_all',
-        max_workers: int=None,
-        simplification_tolerance=10
-    ):
+    roi_df: gpd.GeoDataFrame,
+    grid_size: int = 10000,  # meters
+    buffer_distance: int = 25,  # meters
+    table_name: str = "gbf_all",
+    max_workers: int = None,
+    simplification_tolerance=10,
+):
     """
     roi_df should be in projected coordinate system.
     """
@@ -62,10 +66,10 @@ def get_human_settlements_from_df(
         counter = 0
         for ymin in ymins:
             for xmin in xmins:
-                counter+=1
-                window_bbox = box(xmin, ymin, xmin+grid_size, ymin+grid_size)
+                counter += 1
+                window_bbox = box(xmin, ymin, xmin + grid_size, ymin + grid_size)
                 query = f"""
-                SELECT 
+                SELECT
                     (ST_DUMP(ST_UNION(
                         ST_Buffer(
                             ST_SimplifyPreserveTopology(
@@ -78,7 +82,7 @@ def get_human_settlements_from_df(
                             {buffer_distance}
                         )
                     ))).geom AS geometry
-                FROM 
+                FROM
                     {table_name}
                 WHERE
                     ST_Intersects(
@@ -91,12 +95,12 @@ def get_human_settlements_from_df(
                 """
                 future = pool.submit(get_dataframe, query)
                 futures.append(future)
-    
+
         print(f"Reading total windows {len(futures)}")
         df_store = []
         for i, future in enumerate(as_completed(futures)):
-            print(f"Read window : {i}/{len(futures)}", end='\r')
-            df = future.result()     
+            print(f"Read window : {i}/{len(futures)}", end="\r")
+            df = future.result()
             if len(df) > 0:
                 df_store.append(df)
         print(f"Read all windows: {len(futures)}              ")
@@ -107,18 +111,20 @@ def get_human_settlements_from_df(
     df = gpd.GeoDataFrame(pd.concat(df_store), crs=roi_crs)
 
     print("Remove holes, rows:", len(df))
-    df['geometry'] = df['geometry'].apply(lambda x: remove_holes(x, buffer_distance*buffer_distance*4))
+    df["geometry"] = df["geometry"].apply(
+        lambda x: remove_holes(x, buffer_distance * buffer_distance * 4)
+    )
 
     print("Dissolve to merge windows, rows:", len(df))
     df = df.dissolve().explode(index_parts=False).reset_index(drop=True)
 
     print("Reverse buffer, rows:", len(df))
-    df['geometry'] = df.buffer(-buffer_distance/2)
+    df["geometry"] = df.buffer(-buffer_distance / 2)
 
     print("Remove stray buildings not visible in Sentinel, rows:", len(df))
     # Remove stray buildings not visible in Sentinel
     df = df.explode(index_parts=False).reset_index(drop=True)
-    df = df[df.buffer(-buffer_distance).area > (buffer_distance*buffer_distance*4)]
+    df = df[df.buffer(-buffer_distance).area > (buffer_distance * buffer_distance * 4)]
 
     print("Done, rows:", len(df))
     return df

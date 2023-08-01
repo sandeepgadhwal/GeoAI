@@ -1,12 +1,13 @@
-from osgeo import gdal
+# Standard Library
 from pathlib import Path
+
+from osgeo import gdal
 from pyproj import CRS, Transformer
-from shapely.geometry import box, Polygon
+from shapely.geometry import Polygon, box
 from shapely.ops import transform
 
 
-
-class Image():
+class Image:
     ds: gdal.Dataset
 
     def get_dataset(self) -> gdal.Dataset:
@@ -15,18 +16,17 @@ class Image():
     @property
     def bbox(self) -> Polygon:
         return box(*self.bounds)
-    
+
     @property
     def bbox_4326(self) -> Polygon:
         return transform(
-            Transformer.from_crs(self.crs, 4326, always_xy=True).transform,
-            self.bbox
+            Transformer.from_crs(self.crs, 4326, always_xy=True).transform, self.bbox
         )
-    
+
     @property
     def height(self) -> int:
         return self.get_dataset().RasterYSize
-    
+
     @property
     def width(self) -> int:
         return self.get_dataset().RasterXSize
@@ -34,12 +34,7 @@ class Image():
     @property
     def bounds(self) -> list[float]:
         ul_x, dx, _, ul_y, _, dy = self.get_dataset().GetGeoTransform()
-        return [
-            ul_x, 
-            ul_y+dy*self.height, 
-            ul_x+dx*self.width, 
-            ul_y
-        ]
+        return [ul_x, ul_y + dy * self.height, ul_x + dx * self.width, ul_y]
 
     @property
     def cell_size(self) -> list[float]:
@@ -61,22 +56,22 @@ class Image():
         return ImageTileIndexer(self, tile_size)
 
 
-class ImageTileIndexer():
+class ImageTileIndexer:
     def __init__(self, image: Image, tile_size: int) -> None:
         self.image = image
         self.tile_size = tile_size
 
     def __len__(self):
-        return self.nrows*self.ncols
-    
+        return self.nrows * self.ncols
+
     def __getitem__(self, index):
         row, col = self.index_to_row_col(index)
-        # bounds = 
+        # bounds =
         # return {
         #     'index': index,
         #     'row': row,
         #     'col': col,
-        #     'bounds': 
+        #     'bounds':
         # }
 
     def index_to_row_col(self, index: int):
@@ -85,5 +80,7 @@ class ImageTileIndexer():
     def get_bounds(self, row, col):
         pass
 
-    def get_valid_indexes(self, ):
+    def get_valid_indexes(
+        self,
+    ):
         pass
