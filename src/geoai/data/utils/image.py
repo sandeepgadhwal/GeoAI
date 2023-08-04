@@ -8,7 +8,8 @@ from shapely.ops import transform
 
 
 class Image:
-    ds: gdal.Dataset
+    def __init__(self, ds: gdal.Dataset) -> None:
+        self.ds = ds
 
     def get_dataset(self) -> gdal.Dataset:
         return self.ds

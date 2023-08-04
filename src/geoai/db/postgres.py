@@ -1,4 +1,5 @@
 # Standard Library
+import time
 from contextlib import contextmanager
 
 import docker
@@ -15,7 +16,6 @@ def start_container():
     pg_data_dir_host = config.POSTGRES_DATA_DIR.absolute()
     pg_data_dir_container = "/var/lib/postgresql/data"
     volumes = {pg_data_dir_host: {"bind": pg_data_dir_container, "mode": "rw"}}
-
     client.containers.run(
         "postgis/postgis",
         auto_remove=True,
@@ -30,7 +30,11 @@ def start_container():
         ],
         ports={5432: config.POSTGRES_PORT},
         volumes=volumes,
+        shm_size="1G",
     )
+
+    # Wait for the time container fully starts
+    time.sleep(10)
 
 
 def check_container():
@@ -41,12 +45,9 @@ def check_container():
 
 def remove_container():
     client = docker.from_env()
-    return [
+    containers = client.containers.list(all=True, filters={"name": CONTAINER_NAME})
+    for container in containers:
         container.remove(force=True)
-        for container in client.containers.list(
-            all=True, filters={"name": CONTAINER_NAME}
-        )
-    ]
 
 
 def ensure_container():
@@ -59,7 +60,7 @@ def get_engine():
     ensure_container()
     engine = create_engine(
         f"postgresql://{config.POSTGRES_USER}:@localhost:{config.POSTGRES_PORT}/{config.POSTGRES_DB_NAME}",
-        pool_size=20,
+        pool_size=100,
         max_overflow=0,
     )
     yield engine
