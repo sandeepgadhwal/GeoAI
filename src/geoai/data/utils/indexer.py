@@ -1,9 +1,14 @@
 # Standard Library
-from dataclasses import dataclass
+# from dataclasses import dataclass
 
-import numpy as np
-from pyproj import CRS
-from shapely.geometry import Polygon, box
+# import numpy as np
+# from pyproj import CRS
+# from shapely.geometry import Polygon, box
+
+
+class TileIndexer:
+    pass
+
 
 # @dataclass
 # class Tile():
