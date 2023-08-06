@@ -1,11 +1,13 @@
 # Standard Library
 from pathlib import Path
-from typing import Self
 
 from osgeo import gdal
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 from shapely.ops import transform
+
+# from typing import Self
+Self = "Self"
 
 
 class Image:
