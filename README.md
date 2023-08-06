@@ -5,8 +5,9 @@
 
 ## Conda Environment
 ```bash
+conda activate base
 conda env remove -n geoai -y
-conda create -n geoai python gdal pyarrow jupyter docker-py -y
+conda create -n geoai python=3.10 gdal pyarrow jupyter docker-py -y
 conda activate geoai
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
 
@@ -24,4 +25,9 @@ docker build -t sandeepgadhwal/geoai:0.1 . && docker images sandeepgadhwal/geoai
 docker push sandeepgadhwal/geoai:0.1
 ```
 
-aria2c https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807521_ne_18_060_20180810.tif --max-connection-per-server=10
+## Human Settlements
+
+Train model
+```bash
+./dist_train.sh ./configs/human_settlements/deeplab.py --work-dir /home/sandeep/workspace/Tasks/Task-4-human-settlements/mmseg_test
+```
