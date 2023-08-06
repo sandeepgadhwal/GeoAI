@@ -1,18 +1,25 @@
 # Standard Library
 from pathlib import Path
 
+import numpy as np
+from matplotlib import pyplot as plt
 from mmengine.dataset import BaseDataset
+from osgeo import gdal, ogr
 from torch.utils.data import ConcatDataset
 
 from geoai.data.utils import Image, ImageTileIndexer
 
 
+def get_color_map() -> np.array:
+    return np.array([[0, 0, 0, 0], [245, 66, 66, 255]], dtype=np.uint8)
+
+
 class HumanSettlementsDataset(ConcatDataset):
     def __init__(self, data_folder: Path, tile_size: int) -> None:
         datasets = []
-        for sentinel_scene in Path(data_folder).glob("*.SAFE"):
+        for sentinel_scene in Path(data_folder).rglob("*.SAFE"):
             datasets.append(
-                HumanSettlementsTile(
+                HumanSettlementsScene(
                     sentinel_scene,
                     sentinel_scene.with_suffix(".gpkg"),
                     tile_size=tile_size,
@@ -21,23 +28,100 @@ class HumanSettlementsDataset(ConcatDataset):
         super().__init__(datasets)
 
 
-class HumanSettlementsTile(BaseDataset):
+class HumanSettlementsTile(dict):
+    def plot(self, ax: plt.axes = None, alpha: float = 0.7) -> plt.axes:
+        if ax is None:
+            _, ax = plt.subplots()
+        image_arr = self["image_tile"].ds.ReadAsArray()
+        ax.imshow(np.rollaxis(image_arr, 0, 3))
+        color_map = np.copy(self["color_map"])
+        color_map[:, 3] = int(alpha * 255)
+        sem_seg = color_map[self["label_tile"].ds.ReadAsArray()]
+        ax.imshow(sem_seg)
+        return ax
+
+
+class HumanSettlementsScene(BaseDataset):
     def __init__(
         self, sentinel_image: Path, human_settlements_filepath: Path, tile_size: int
     ) -> None:
-        super().__init__()
-        self.sentinel_image = sentinel_image
-        self.human_settlements_filepath = human_settlements_filepath
+        self.sentinel_image = Path(sentinel_image)
+        self.human_settlements_filepath = Path(human_settlements_filepath)
         self.tile_size = tile_size
+
+        self._image = None
+        self._label = None
+
+        super().__init__(serialize_data=False)
 
     def __len__(self) -> ImageTileIndexer:
         return len(self.indexer)
 
-    def get_image(self) -> Image:
-        im = Image.from_path.Open(f"{self.sentinel_image}/MTD_MSIL2A.xml")
-        ds_RGB_path = im.ds.GetSubDatasets()[-1][0]
-        return Image.from_path(ds_RGB_path)
-
     @property
     def indexer(self) -> ImageTileIndexer:
         return ImageTileIndexer(self.get_image(), self.tile_size)
+
+    def full_init(self) -> None:
+        super().full_init()
+        # _ = self.get_image()
+        # _ = self.get_label()
+        self.color_map = get_color_map()
+
+    def load_data_list(self) -> list:
+        return []
+
+    def get_image(self) -> Image:
+        if self._image is None:
+            im = Image.from_path(f"{self.sentinel_image}/MTD_MSIL2A.xml")
+            ds_RGB_path = im.ds.GetSubDatasets()[-1][0]
+            self._image = Image.from_path(ds_RGB_path)
+        return self._image
+
+    def get_image_tile(self, index: int) -> Image:
+        return self.indexer.index_to_tile(index)
+
+    def get_label_tile(self, index: int) -> Image:
+        return self._get_label_tile(self.get_image_tile(index))
+
+    def _get_label_tile(self, image_tile: Image) -> Image:
+        label_ds = ogr.Open(str(self.human_settlements_filepath))
+        lyr_name = label_ds.GetLayer().GetDescription()
+        label_layer = label_ds.ExecuteSQL(
+            f"SELECT * FROM {lyr_name}", ogr.CreateGeometryFromWkb(image_tile.bbox.wkb)
+        )
+        label_tile = get_label_like(image_tile)
+        label_tile.ds
+        _ = gdal.RasterizeLayer(label_tile.ds, [1], label_layer, burn_values=[1])
+        return label_tile
+
+    def get_label(self) -> Image:
+        """
+        Not to be used withing a data loader.
+        """
+        if self._label is None:
+            label_ds = ogr.Open(str(self.human_settlements_filepath))
+            label_layer = label_ds.GetLayer()
+            label_image = get_label_like(self.get_image())
+            _ = gdal.RasterizeLayer(label_image.ds, [1], label_layer, burn_values=[1])
+            self._label = label_image
+        return self._label
+
+    def get_data_info(self, index: int) -> HumanSettlementsTile:
+        res = self.indexer[0]
+        res["image_path"] = self.sentinel_image
+        res["label_path"] = self.human_settlements_filepath
+        image_tile = res["image_tile"] = self.get_image_tile(index)
+        res["label_tile"] = self._get_label_tile(image_tile)
+        res["color_map"] = self.color_map
+        return HumanSettlementsTile(res)
+
+
+def get_label_like(image: Image) -> Image:
+    ds = gdal.GetDriverByName("MEM").Create(
+        "", image.width, image.height, bands=1, eType=gdal.GDT_Byte
+    )
+    ds.SetGeoTransform(image.ds.GetGeoTransform())
+    ds.SetSpatialRef(image.ds.GetSpatialRef())
+    band = ds.GetRasterBand(1)
+    band.SetNoDataValue(0)
+    return Image.from_gdal(ds)

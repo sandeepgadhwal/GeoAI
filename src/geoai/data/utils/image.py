@@ -7,8 +7,6 @@ from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 from shapely.ops import transform
 
-from geoai.data.utils.indexer import ImageTileIndexer
-
 
 class Image:
     def __init__(self, ds: gdal.Dataset) -> None:
@@ -55,10 +53,16 @@ class Image:
         return CRS.from_wkt(self.get_dataset().GetSpatialRef().ExportToWkt())
 
     def save(self, path: Path) -> None:
-        pass
+        drv = gdal.GetDriverByName("GTiff")
 
-    def get_indexer(self, tile_size: int) -> ImageTileIndexer:
-        return ImageTileIndexer(self, tile_size)
+        def progress_callback(complete: float, message: str, unknown: None) -> None:
+            m = f"-- Progress: {complete*100} % | {message}   "
+            print(m, end="\r")
+
+        ds = drv.CreateCopy(str(path), self.ds, callback=progress_callback)
+        ds.FlushCache()
+        del ds
+        print("Done.", " " * 25)
 
     @classmethod
     def from_gdal(cls, ds: gdal.Dataset) -> Self:
@@ -66,4 +70,4 @@ class Image:
 
     @classmethod
     def from_path(cls, path: Path) -> Self:
-        return cls.from_gdal(gdal.Open(path))
+        return cls.from_gdal(gdal.Open(str(path)))
