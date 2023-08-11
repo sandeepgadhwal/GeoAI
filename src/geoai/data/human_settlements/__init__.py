@@ -56,8 +56,6 @@ class HumanSettlementsScene(BaseDataset):
         self.sentinel_image = Path(sentinel_image)
         self.human_settlements_filepath = Path(human_settlements_filepath)
         self.tile_size = tile_size
-        if self.pipeline is None:
-            self.pipeline = []
 
         self._image = None
         self._label = None

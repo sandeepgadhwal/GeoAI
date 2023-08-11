@@ -8,19 +8,11 @@ tile_size = 769
 crop_size = (tile_size, tile_size)
 data_preprocessor = dict(
     bgr_to_rgb=False,
-    mean=[
-        123.675,
-        116.28,
-        103.53,
-    ],
+    mean=[108.73695208, 96.00274168, 68.79838085],
     pad_val=0,
     seg_pad_val=255,
     size=crop_size,
-    std=[
-        58.395,
-        57.12,
-        57.375,
-    ],
+    std=[69.4116911, 49.14411098, 40.29631649],
     type="SegDataPreProcessor",
 )
 data_root = "/home/sandeep/workspace/data/human-settlements"
