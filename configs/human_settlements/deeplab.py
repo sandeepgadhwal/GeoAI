@@ -56,6 +56,7 @@ train_dataloader = dict(
         pipeline=train_pipeline,
     ),
     num_workers=8,
+    batch_size=64,
 )
 
 val_pipeline = [dict(type="PackSegInputs")]
@@ -68,3 +69,28 @@ val_dataloader = dict(
         pipeline=val_pipeline,
     )
 )
+
+vis_backends = [
+    dict(type="LocalVisBackend"),
+    dict(
+        type="WandbVisBackend",
+        init_kwargs=dict(entity="sandeepgadhwal1", project="human-settlements"),
+    ),
+]
+visualizer = dict(
+    name="visualizer",
+    type="SegLocalVisualizer",
+    vis_backends=vis_backends,
+)
+
+default_hooks = dict(
+    checkpoint=dict(by_epoch=False, interval=4000, type="CheckpointHook"),
+    logger=dict(interval=10, log_metric_by_epoch=False, type="LoggerHook"),
+    param_scheduler=dict(type="ParamSchedulerHook"),
+    sampler_seed=dict(type="DistSamplerSeedHook"),
+    timer=dict(type="IterTimerHook"),
+    visualization=dict(type="SegVisualizationHook", draw=True, interval=20),
+)
+
+optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)
+optim_wrapper = dict(clip_grad=None, optimizer=optimizer, type="OptimWrapper")
