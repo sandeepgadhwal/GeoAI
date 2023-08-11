@@ -20,7 +20,7 @@ CHUNK_SIZE = 100000
 VIEW_NAME = "gbf_all"
 
 
-def get_tiles():
+def get_tiles() -> gpd.GeoDataFrame:
     tiles_path = GBF_WORKDIR / Path(TILES_URL).name
     GBF_WORKDIR.mkdir(parents=True, exist_ok=True)
 
@@ -29,7 +29,7 @@ def get_tiles():
     return gpd.read_file(tiles_path)
 
 
-def main():
+def main() -> None:
     cdf = get_countries()
     india_geom = cdf[cdf["NAME_EN"] == "India"].unary_union
     tiles_df = get_tiles()
@@ -49,7 +49,7 @@ def main():
     create_view(table_names)
 
 
-def create_view(table_names):
+def create_view(table_names: list[str]) -> None:
     table_queries = []
     for table_name in table_names:
         if table_name is None:
@@ -75,7 +75,7 @@ def create_view(table_names):
     print(f"-- Created View: {VIEW_NAME}")
 
 
-def insert_tile(url):
+def insert_tile(url: str) -> None:
     print(f"-- Processing: {url}")
     tile_name = Path(url).name
     table_name = f"gbf_{tile_name.split('.')[0]}"
@@ -106,14 +106,10 @@ def insert_tile(url):
     print(f"-- Inserted table: {table_name}")
 
     file_path_track.parent.mkdir(exist_ok=True)
-    with open(file_path_track, "w") as f:
+    with open(file_path_track, "w") as _:
         pass
 
     return table_name
-
-
-def get_download_list():
-    pass
 
 
 if __name__ == "__main__":

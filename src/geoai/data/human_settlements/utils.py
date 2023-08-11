@@ -14,7 +14,9 @@ from geoai.data.utils.image import Image
 from geoai.db.postgres import get_connection
 
 
-def get_human_settlements_from_sentinel_image(image_path: Path, **kwargs):
+def get_human_settlements_from_sentinel_image(
+    image_path: Path, **kwargs: dict
+) -> gpd.GeoDataFrame:
     """
     This Code creates human settlements from building footprint data for an  input sentinel image.
 
@@ -29,7 +31,7 @@ def get_human_settlements_from_sentinel_image(image_path: Path, **kwargs):
     return get_human_settlements_from_df(gdf, **kwargs)
 
 
-def remove_holes(geom, area):
+def remove_holes(geom: Polygon, area: float) -> Polygon:
     holes = []
     for hole in geom.interiors:
         if Polygon(hole).area > area:
@@ -37,7 +39,7 @@ def remove_holes(geom, area):
     return Polygon(geom.exterior, holes)
 
 
-def get_dataframe(query: str):
+def get_dataframe(query: str) -> gpd.GeoDataFrame:
     with get_connection() as conn:
         return gpd.read_postgis(query, con=conn, geom_col="geometry")
 
@@ -77,7 +79,7 @@ def get_human_settlements_from_df(
     buffer_distance: int = 25,  # meters
     max_workers: int = None,
     # simplification_tolerance=10,
-):
+) -> gpd.GeoDataFrame:
     """
     roi_df should be in projected coordinate system.
     """

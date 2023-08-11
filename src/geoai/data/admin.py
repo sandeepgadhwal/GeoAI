@@ -12,7 +12,7 @@ COUNTRIES_URL = "https://datacatalogfiles.worldbank.org/ddh-published/0038272/DR
 ADMIN_WORKDIR = config.WORK_DIR / "admin"
 
 
-def get_countries():
+def get_countries() -> gpd.GeoDataFrame:
     file_path = ADMIN_WORKDIR / Path(COUNTRIES_URL).name
     ADMIN_WORKDIR.mkdir(parents=True, exist_ok=True)
     if not file_path.exists():

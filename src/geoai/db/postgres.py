@@ -3,14 +3,14 @@ import time
 from contextlib import contextmanager
 
 import docker
-from sqlalchemy import create_engine
+from sqlalchemy import Connection, Engine, create_engine
 
 from geoai import config
 
 CONTAINER_NAME = "geoai_postgres"
 
 
-def start_container():
+def start_container() -> None:
     remove_container()
     client = docker.from_env()
     pg_data_dir_host = config.POSTGRES_DATA_DIR.absolute()
@@ -37,26 +37,26 @@ def start_container():
     time.sleep(10)
 
 
-def check_container():
+def check_container() -> bool:
     client = docker.from_env()
     assert len(client.containers.list(filters={"name": CONTAINER_NAME})) < 2
     return len(client.containers.list(filters={"name": CONTAINER_NAME})) == 1
 
 
-def remove_container():
+def remove_container() -> None:
     client = docker.from_env()
     containers = client.containers.list(all=True, filters={"name": CONTAINER_NAME})
     for container in containers:
         container.remove(force=True)
 
 
-def ensure_container():
+def ensure_container() -> None:
     if not check_container():
         start_container()
 
 
 @contextmanager
-def get_engine():
+def get_engine() -> Engine:
     ensure_container()
     engine = create_engine(
         f"postgresql://{config.POSTGRES_USER}:@localhost:{config.POSTGRES_PORT}/{config.POSTGRES_DB_NAME}",
@@ -68,12 +68,12 @@ def get_engine():
 
 
 @contextmanager
-def get_connection():
+def get_connection() -> Connection:
     with get_engine() as engine:
         yield engine.connect()
 
 
-def main():
+def main() -> None:
     start_container()
 
 

@@ -9,9 +9,9 @@ def download_file(
     url: str,
     out_path: Path,
     file_name: str | None = None,
-    overwrite=False,
-    exists_ok=False,
-):
+    overwrite: bool = False,
+    exists_ok: bool = False,
+) -> Path:
     if not out_path.exists():
         raise Exception("output directory does not exist.")
 

@@ -1,6 +1,6 @@
 from torch.utils.data import Dataset
 
-from geoai.data.utils import TileIndexer
+from geoai.data.utils import Image, ImageTileIndexer
 
 
 class TileDataset(Dataset):
@@ -8,12 +8,9 @@ class TileDataset(Dataset):
         super().__init__()
         self._indexer = None
 
-    def get_image(self):
+    def get_image(self) -> Image:
         raise NotImplementedError
 
     @property
-    def indexer(self):
-        if self._indexer is None:
-            image = self.get_image()
-            self._indexer = TileIndexer(image.footprint, image.crs, self.tile_size)
-        return self._indexer
+    def indexer(self) -> ImageTileIndexer:
+        raise NotImplementedError
