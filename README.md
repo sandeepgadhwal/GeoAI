@@ -11,7 +11,7 @@ conda create -n geoai python=3.10 gdal pyarrow jupyter docker-py -y
 conda activate geoai
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
 
-pip install geopandas google-cloud-storage geoalchemy2
+pip install geopandas google-cloud-storage geoalchemy2 wandb
 pip install -U openmim
 mim install mmengine "mmcv>=2.0.0"
 pip install "mmsegmentation>=1.0.0"
@@ -26,6 +26,11 @@ docker push sandeepgadhwal/geoai:0.1
 ```
 
 ## Human Settlements
+
+Enable Weights and Biases
+```bash
+export WANDB_API_KEY=YOurkey
+```
 
 Train model
 ```bash

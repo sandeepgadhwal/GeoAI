@@ -55,8 +55,8 @@ train_dataloader = dict(
         tile_size=tile_size,
         pipeline=train_pipeline,
     ),
-    num_workers=8,
-    batch_size=64,
+    num_workers=12,
+    batch_size=8,
 )
 
 val_pipeline = [dict(type="PackSegInputs")]
