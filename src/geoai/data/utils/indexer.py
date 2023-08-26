@@ -23,7 +23,6 @@ class ImageTileIndexer:
         row, col = self.index_to_row_col(index)
         top, left = self.index_to_offset(index)
         return {"row": row, "col": col, "offset_y": top, "offset_x": left}
-        pass
 
     def index_to_row_col(self, index: int) -> tuple[int, int]:
         return int(index // self.ncols), index % self.ncols
@@ -33,6 +32,12 @@ class ImageTileIndexer:
         top = row * self.tile_size
         left = col * self.tile_size
         return top, left
+
+    def index_to_valid_pixels(self, index: int) -> tuple[int, int]:
+        top, left = self.index_to_offset(index)
+        ysize = min(self.tile_size, self.image.height - top)
+        xsize = min(self.tile_size, self.image.width - left)
+        return ysize, xsize
 
     def index_to_bounds(self, index: int) -> tuple[float, float, float, float]:
         top, left = self.index_to_offset(index)

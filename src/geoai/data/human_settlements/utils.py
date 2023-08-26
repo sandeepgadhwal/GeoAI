@@ -13,6 +13,8 @@ from geoai.data.building_footprint.insert_data_to_postgis import get_tiles
 from geoai.data.utils.image import Image
 from geoai.db.postgres import get_connection
 
+# from memory_profiler import profile
+
 
 def get_human_settlements_from_sentinel_image(
     image_path: Path, **kwargs: dict
@@ -39,40 +41,16 @@ def remove_holes(geom: Polygon, area: float) -> Polygon:
     return Polygon(geom.exterior, holes)
 
 
-def get_dataframe(query: str) -> gpd.GeoDataFrame:
+def get_dataframe(query: str, buffer_distance: int) -> gpd.GeoDataFrame:
     with get_connection() as conn:
-        return gpd.read_postgis(query, con=conn, geom_col="geometry")
-
-        # query = f"""
-        # SELECT
-        #     (ST_DUMP(ST_UNION(
-        #         ST_Buffer(
-        #             ST_SimplifyPreserveTopology(
-        #                 ST_Transform(
-        #                     geometry,
-        #                     {roi_crs}
-        #                 ),
-        #                 {simplification_tolerance}
-        #             ),
-        #             {buffer_distance},
-        #             'endcap=flat join=flat'
-        #         )
-        #     ))).geom AS geometry
-        # FROM
-        #     {table_name}
-        # WHERE
-        #     ST_Intersects(
-        #         geometry,
-        #         ST_Transform(
-        #             ST_GeomFromText('{window_bbox.wkt}', {roi_crs}),
-        #             4326
-        #         )
-        #     )
-        # LIMIT 100
-        # """
-        # buffer_distance = 0
+        df = gpd.read_postgis(query, con=conn, geom_col="geometry")
+    df["geometry"] = df["geometry"].apply(
+        lambda x: remove_holes(x, buffer_distance * buffer_distance * 4)
+    )
+    return df
 
 
+# @profile
 def get_human_settlements_from_df(
     roi_df: gpd.GeoDataFrame,
     grid_size: int = 10000,  # meters
@@ -136,7 +114,7 @@ def get_human_settlements_from_df(
                             )
                         )
                     """
-                    future = pool.submit(get_dataframe, query)
+                    future = pool.submit(get_dataframe, query, buffer_distance)
                     futures.append(future)
 
         print(f"Reading total windows {len(futures)}")
@@ -147,16 +125,17 @@ def get_human_settlements_from_df(
             if len(df) > 0:
                 df_store.append(df)
         print(f"Read all windows: {len(futures)}              ")
+        del futures
 
     print("Concat data")
     if not df_store:
         return gpd.GeoDataFrame()
     df = gpd.GeoDataFrame(pd.concat(df_store), crs=roi_crs)
+    del df_store
 
-    print("Remove holes, rows:", len(df))
-    df["geometry"] = df["geometry"].apply(
-        lambda x: remove_holes(x, buffer_distance * buffer_distance * 4)
-    )
+    # df["geometry"] = df["geometry"].apply(
+    #     lambda x: remove_holes(x, buffer_distance * buffer_distance * 4)
+    # )
 
     print("Dissolve to merge windows, rows:", len(df))
     df = df.dissolve().explode(index_parts=False).reset_index(drop=True)

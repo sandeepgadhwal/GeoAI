@@ -11,8 +11,11 @@ Self = "Self"
 
 
 class Image:
-    def __init__(self, ds: gdal.Dataset) -> None:
+    def __init__(self, ds: gdal.Dataset, meta: dict | None = None) -> None:
         self.ds = ds
+        self.meta = meta
+        if self.meta is None:
+            self.meta = {}
 
     def get_dataset(self) -> gdal.Dataset:
         return self.ds
@@ -73,3 +76,12 @@ class Image:
     @classmethod
     def from_path(cls, path: Path) -> Self:
         return cls.from_gdal(gdal.Open(str(path)))
+
+    @classmethod
+    def from_meta(cls, meta: dict) -> Self:
+        ds = gdal.Translate(
+            "",
+            str(meta["path"]),
+            options=gdal.TranslateOptions(format="MEM", srcWin=meta["srcWin"]),
+        )
+        return cls(ds, meta=meta)

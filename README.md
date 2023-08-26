@@ -7,7 +7,7 @@
 ```bash
 conda activate base
 conda env remove -n geoai -y
-conda create -n geoai python=3.10 gdal pyarrow jupyter docker-py -y
+conda create -n geoai python=3.10 gdal pyarrow jupyter docker-py psycopg2 -y
 conda activate geoai
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
 
