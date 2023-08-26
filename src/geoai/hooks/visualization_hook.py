@@ -1,6 +1,7 @@
 # Standard Library
 from typing import Sequence
 
+import numpy as np
 from mmengine.runner import Runner
 from mmseg.engine.hooks.visualization_hook import SegVisualizationHook
 from mmseg.registry import HOOKS
@@ -36,6 +37,7 @@ class CustomSegVisualizationHook(SegVisualizationHook):
                 try:
                     img_meta = data_batch["data_samples"][i].img_meta
                     img = Image.from_meta(img_meta).ds.ReadAsArray()
+                    img = np.transpose(img, (1, 2, 0))
                     srcWin_ = "_".join([str(x) for x in img_meta["srcWin"]])
                     window_name = f"""{mode}_{output.img_path.stem}_{srcWin_}"""
 

@@ -20,6 +20,7 @@ data_root = "/home/sandeep/workspace/data/human-settlements"
 dataset_type = "HumanSettlementsDataset"
 classes = ["background", "settlements"]
 num_classes = len(classes)
+
 model = dict(
     auxiliary_head=dict(
         num_classes=num_classes,
@@ -43,15 +44,14 @@ test_dataloader = None
 test_evaluator = None
 test_cfg = None
 
-metainfo = {"classes": classes}
 total_images = 9680
 batch_size = 20
 per_epoch_iters = int(total_images // batch_size)
-epochs = 10
+epochs = 100
 train_cfg = dict(
     max_iters=epochs * per_epoch_iters,
     type="IterBasedTrainLoop",
-    val_interval=10,  # per_epoch_iters
+    val_interval=per_epoch_iters,
 )
 
 meta_keys = (
@@ -75,7 +75,6 @@ train_dataloader = dict(
         data_folder=data_root + "/train",
         tile_size=tile_size,
         pipeline=train_pipeline,
-        metainfo=metainfo,
     ),
     num_workers=12,
     batch_size=batch_size,
@@ -89,7 +88,6 @@ val_dataloader = dict(
         data_folder=data_root + "/valid",
         tile_size=tile_size,
         pipeline=val_pipeline,
-        metainfo=metainfo,
     )
 )
 
@@ -112,7 +110,7 @@ default_hooks = dict(
     param_scheduler=dict(type="ParamSchedulerHook"),
     sampler_seed=dict(type="DistSamplerSeedHook"),
     timer=dict(type="IterTimerHook"),
-    visualization=dict(type="CustomSegVisualizationHook", draw=True, interval=20),
+    visualization=dict(type="CustomSegVisualizationHook", draw=True, interval=10),
 )
 
 optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)

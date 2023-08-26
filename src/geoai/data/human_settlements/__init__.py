@@ -27,7 +27,10 @@ class HumanSettlementsDataset(ConcatDataset):
         label_coverage_threshold: float = 0.01,
     ) -> None:
         sentinel_scenes = list(Path(data_folder).rglob("*.SAFE"))
-        labels = {x.name: x for x in Path(data_folder).rglob("**/QA/*.gpkg")}
+        labels = {
+            **{x.name: x for x in Path(data_folder).rglob("**/QA/*.gpkg")},
+            **{x.name: x for x in Path(data_folder).rglob("**/fakeQA/*.gpkg")},
+        }
         datasets = []
         for i, sentinel_scene in enumerate(sentinel_scenes):
             label_file = sentinel_scene.with_suffix(".gpkg").name
@@ -45,9 +48,13 @@ class HumanSettlementsDataset(ConcatDataset):
                     subset = dataset
                 datasets.append(subset)
                 m = f"Prepared Dataset: ({i}/{len(sentinel_scenes)}) {sentinel_scene} filtered ({len(subset)}/{len(dataset)})"
-                print(m, end="\r")
+                print(m, " " * 5, end="\r")
+        print("")
         super().__init__(datasets)
-        self.metainfo = metainfo
+        if label_coverage_threshold > 0:
+            self.metainfo = self.datasets[0].dataset.metainfo
+        else:
+            self.metainfo = self.datasets[0].metainfo
 
 
 class HumanSettlementsTile(dict):
@@ -63,7 +70,10 @@ class HumanSettlementsTile(dict):
 
 
 class HumanSettlementsScene(BaseDataset):
-    dataset_meta = {"classes": ["background", "settlements"]}
+    METAINFO = {
+        "classes": ["background", "settlements"],
+        "palette": [[0, 0, 0], [245, 66, 66]],
+    }
 
     def __init__(
         self,
@@ -94,7 +104,7 @@ class HumanSettlementsScene(BaseDataset):
         super().full_init()
         # _ = self.get_image()
         # _ = self.get_label()
-        self.color_map = get_color_map()
+        self.color_map = np.array(self.metainfo["palette"], dtype=np.uint8)
 
     def load_data_list(self) -> list:
         return []

@@ -29,7 +29,10 @@ docker push sandeepgadhwal/geoai:0.1
 
 Enable Weights and Biases
 ```bash
-export WANDB_API_KEY=YOurkey
+export WANDB_API_KEY=YOURKEY
+```
+```bash
+source /home/sandeep/workspace/Tasks/credentials.sh
 ```
 
 Train model
