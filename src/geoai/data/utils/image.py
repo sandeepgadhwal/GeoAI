@@ -71,10 +71,12 @@ class Image:
 
     @classmethod
     def from_gdal(cls, ds: gdal.Dataset) -> Self:
+        assert isinstance(ds, gdal.Dataset)
         return cls(ds)
 
     @classmethod
     def from_path(cls, path: Path) -> Self:
+        assert isinstance(path, (Path, str))
         return cls.from_gdal(gdal.Open(str(path)))
 
     @classmethod

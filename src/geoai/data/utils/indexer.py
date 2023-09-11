@@ -22,7 +22,15 @@ class ImageTileIndexer:
     def __getitem__(self, index: int) -> dict:
         row, col = self.index_to_row_col(index)
         top, left = self.index_to_offset(index)
-        return {"row": row, "col": col, "offset_y": top, "offset_x": left}
+        ysize, xsize = self.index_to_valid_pixels(index)
+        return {
+            "row": row,
+            "col": col,
+            "offset_y": top,
+            "offset_x": left,
+            "ysize": ysize,
+            "xsize": xsize,
+        }
 
     def index_to_row_col(self, index: int) -> tuple[int, int]:
         return int(index // self.ncols), index % self.ncols
