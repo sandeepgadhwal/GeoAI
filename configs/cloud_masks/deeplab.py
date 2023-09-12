@@ -49,7 +49,7 @@ test_cfg = None
 total_images_train = 800
 batch_size = 64
 per_epoch_iters = int(total_images_train // batch_size)
-epochs = 100
+epochs = 1000
 train_cfg = dict(
     max_iters=epochs * per_epoch_iters,
     type="IterBasedTrainLoop",
@@ -123,5 +123,5 @@ default_hooks = dict(
 )
 
 # optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)
-optimizer = dict(type="Adam", lr=0.0003, weight_decay=0.0001)
+optimizer = dict(_delete_=True, type="Adam", lr=0.0003, weight_decay=0.0001)
 optim_wrapper = dict(clip_grad=None, optimizer=optimizer, type="OptimWrapper")
