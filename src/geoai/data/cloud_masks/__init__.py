@@ -1,15 +1,18 @@
 # Standard Library
+import json
 from pathlib import Path
 
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from mmengine.dataset import BaseDataset
+from mmseg.registry import DATASETS
 from torch.utils.data import ConcatDataset, Subset
 
 from geoai.data.utils import Image, ImageTileIndexer
 
 
+@DATASETS.register_module()
 class CloudMaskDataset(ConcatDataset):
     def __init__(
         self,
@@ -19,7 +22,9 @@ class CloudMaskDataset(ConcatDataset):
         metainfo: dict | None = None,
         label_coverage_threshold: float = 0.01,
     ) -> None:
-        scenes = list((Path(data_folder) / "train_true_color").rglob("*.tif"))
+        self.label_coverage_threshold = label_coverage_threshold
+        self.data_folder = Path(data_folder)
+        scenes = list((self.data_folder / "train_true_color").rglob("*.tif"))
         datasets = []
         for i, scene in enumerate(scenes):
             idx = scene.stem.split("_")[-1]
@@ -44,6 +49,38 @@ class CloudMaskDataset(ConcatDataset):
             self.metainfo = self.datasets[0].dataset.metainfo
         else:
             self.metainfo = self.datasets[0].metainfo
+
+    def get_stats(self, force_recalculate: bool = False) -> dict:
+        image_stats_file = self.data_folder / "cloud_mask_image_stats.json"
+        if not image_stats_file.exists() or force_recalculate:
+            image_stats = self.calculate_image_stats()
+            for k in image_stats:
+                image_stats[k] = image_stats[k].tolist()
+            with open(image_stats_file, "w") as f:
+                json.dump(image_stats, f)
+        else:
+            with open(image_stats_file) as f:
+                image_stats = json.load(f)
+            for k in image_stats:
+                image_stats[k] = np.array(image_stats[k], dtype=np.float32)
+        return {"image_stats": image_stats}
+
+    def calculate_image_stats(self) -> dict:
+        mean_store = []
+        variance_store = []
+        for i, dataset in enumerate(self.datasets):
+            m = f"Calculating stats: ({i}/{len(self.datasets)})"
+            print(m, " " * 5, end="\r")
+            if self.label_coverage_threshold > 0:
+                dataset = dataset.dataset
+            stats = dataset.get_image().get_stats()
+            mean_store.append(stats["mean"])
+            variance_store.append(stats["variance"])
+        print("")
+
+        std = np.stack(variance_store).mean(axis=0) ** 0.5
+        mean = np.stack(mean_store).mean(axis=0)
+        return {"mean": mean, "std": std}
 
 
 class CloudMaskTile(dict):
@@ -78,11 +115,6 @@ class CloudMaskScene(BaseDataset):
         self.image_filepath = Path(image)
         self.mask_filepath = Path(mask)
         self.tile_size = tile_size
-
-        # self._image_path = None
-        # self._image = None
-        # self._label = None
-
         super().__init__(serialize_data=False, pipeline=pipeline, metainfo=metainfo)
 
     def __len__(self) -> int:
@@ -94,8 +126,6 @@ class CloudMaskScene(BaseDataset):
 
     def full_init(self) -> None:
         super().full_init()
-        # _ = self.get_image()
-        # _ = self.get_label()
         self.color_map = np.array(self.metainfo["palette"], dtype=np.uint8)
 
     def load_data_list(self) -> list:

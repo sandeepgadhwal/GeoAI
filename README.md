@@ -35,7 +35,14 @@ export WANDB_API_KEY=YOURKEY
 source /home/sandeep/workspace/Tasks/credentials.sh
 ```
 
-Train model
+## Train model
+
+Train Human settlement model
 ```bash
 ./dist_train.sh ./configs/human_settlements/deeplab.py --work-dir /home/sandeep/workspace/Tasks/Task-4-human-settlements/mmseg_test
+```
+
+Train cloud mask model
+```bash
+./dist_train.sh ./configs/cloud_masks/deeplab.py --work-dir /home/sandeep/workspace/competitions/MaskingCloudsinSatelliteImageries/training/mmseg_test
 ```

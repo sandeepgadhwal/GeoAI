@@ -1,6 +1,7 @@
 # Standard Library
 from pathlib import Path
 
+import numpy as np
 from osgeo import gdal
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
@@ -19,6 +20,14 @@ class Image:
 
     def get_dataset(self) -> gdal.Dataset:
         return self.ds
+
+    @property
+    def data(self) -> np.ndarray:
+        ds = self.get_dataset()
+        arr = ds.ReadAsArray()
+        if len(arr.shape) == 2:
+            arr = arr[None]
+        return arr
 
     @property
     def bbox(self) -> Polygon:
@@ -87,3 +96,18 @@ class Image:
             options=gdal.TranslateOptions(format="MEM", srcWin=meta["srcWin"]),
         )
         return cls(ds, meta=meta)
+
+    def get_stats(self) -> dict:
+        stats = {}
+        arr = self.data
+        stats["shape"] = arr.shape
+        stats["size"] = arr.size
+        view = arr.reshape(arr.shape[0], -1)
+        stats["max"] = view.max(-1)
+        stats["min"] = view.min(-1)
+        stats["mean"] = view.mean(-1)
+        stats["std"] = view.std(-1)
+        stats["variance"] = ((view - stats["mean"].reshape(-1, 1)) ** 2).sum(
+            -1
+        ) / view.shape[-1]
+        return stats
