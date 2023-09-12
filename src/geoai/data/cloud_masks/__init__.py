@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Standard Library
 import json
 from pathlib import Path
@@ -86,15 +88,22 @@ class CloudMaskDataset(ConcatDataset):
 
 
 class CloudMaskTile(dict):
-    def plot(self, ax: plt.axes = None, alpha: float = 0.7) -> plt.axes:
+    def plot(
+        self,
+        ax: plt.axes = None,
+        alpha: float = 0.7,
+        percent_clip: list[int] | None = None,
+    ) -> plt.axes:
+        if percent_clip is None:
+            percent_clip = [0, 100]
         if ax is None:
             _, ax = plt.subplots()
-        min, max = np.percentile(self["img"].reshape(-1, 3), [2, 98], axis=0)
+        min, max = np.percentile(self["img"].reshape(-1, 3), percent_clip, axis=0)
         arr = (self["img"] - min) / (max - min)
         arr = np.clip(arr, 0, 1)
         ax.imshow(arr)
         color_map = np.pad(self["color_map"], ((0, 0), (0, 1)))
-        color_map[:, 3] = int(alpha * 255)
+        color_map[1:, 3] = int(alpha * 255)
         sem_seg = color_map[self["gt_seg_map"]]
         ax.imshow(sem_seg)
         return ax

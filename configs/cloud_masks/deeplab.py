@@ -118,9 +118,10 @@ default_hooks = dict(
         type="CustomSegVisualizationHook",
         draw=True,
         interval=10,
-        backend_args={"percent_clip": 5},
+        backend_args={"percent_clip": [0, 98]},
     ),
 )
 
-optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)
+# optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)
+optimizer = dict(type="Adam", lr=0.0003, weight_decay=0.0001)
 optim_wrapper = dict(clip_grad=None, optimizer=optimizer, type="OptimWrapper")

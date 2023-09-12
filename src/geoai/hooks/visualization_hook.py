@@ -32,10 +32,9 @@ class CustomSegVisualizationHook(SegVisualizationHook):
         if self.draw is False or mode == "train":
             return
 
-        if self.backend_args is None:
-            percent_clip = 0
-        else:
-            percent_clip = self.backend_args.get("percent_clip", 0)
+        percent_clip = [0, 100]
+        if self.backend_args is not None:
+            percent_clip = self.backend_args.get("percent_clip", percent_clip)
 
         if self.every_n_inner_iters(batch_idx, self.interval):
             for i, output in enumerate(outputs):
@@ -49,9 +48,7 @@ class CustomSegVisualizationHook(SegVisualizationHook):
                 img = np.transpose(img, (1, 2, 0))
 
                 # Get min max percentiles for clip normalization
-                min, max = np.percentile(
-                    img.reshape(-1, 3), [percent_clip, 100 - percent_clip], axis=0
-                )
+                min, max = np.percentile(img.reshape(-1, 3), percent_clip, axis=0)
 
                 # Min max normalization
                 img = (img - min) / (max - min)
