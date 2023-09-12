@@ -21,14 +21,16 @@ class CloudMaskDataset(ConcatDataset):
         pipeline: list[dict] | None = None,
         metainfo: dict | None = None,
         label_coverage_threshold: float = 0.01,
+        image_dir: str = "image",
+        mask_dir: str = "mask",
     ) -> None:
         self.label_coverage_threshold = label_coverage_threshold
         self.data_folder = Path(data_folder)
-        scenes = list((self.data_folder / "train_true_color").rglob("*.tif"))
+        scenes = list((self.data_folder / image_dir).rglob("*.tif"))
         datasets = []
         for i, scene in enumerate(scenes):
             idx = scene.stem.split("_")[-1]
-            label_file = Path(data_folder) / "train_mask" / f"train_mask_{idx}.tif"
+            label_file = Path(data_folder) / mask_dir / f"train_mask_{idx}.tif"
             dataset = CloudMaskScene(
                 scene,
                 label_file,
@@ -157,7 +159,10 @@ class CloudMaskScene(BaseDataset):
         image_tile = self.get_image_tile(index)
         label_tile = self.get_label_tile(index)
         res["color_map"] = self.color_map
-        res["img"] = np.transpose(image_tile.ds.ReadAsArray(), (1, 2, 0))
+        arr = np.transpose(image_tile.ds.ReadAsArray(), (1, 2, 0))
+        if arr.dtype == np.uint16:
+            arr = arr.astype(np.int32)
+        res["img"] = arr
         res["ori_shape"] = res["img"].shape[:2]
         res["img_meta"] = image_tile.meta
         res["gt_seg_map"] = label_tile.ds.ReadAsArray()

@@ -5,7 +5,7 @@ custom_imports = dict(
     allow_failed_imports=False,
 )
 
-tile_size = 512
+tile_size = 250
 crop_size = (tile_size, tile_size)
 data_preprocessor = dict(
     bgr_to_rgb=False,
@@ -17,7 +17,7 @@ data_preprocessor = dict(
     type="SegDataPreProcessor",
 )
 data_root = (
-    "/home/sandeep/workspace/competitions/MaskingCloudsinSatelliteImageries/data"
+    "/home/sandeep/workspace/competitions/MaskingCloudsinSatelliteImageries/data/split"
 )
 dataset_type = "CloudMaskDataset"
 classes = ["background", "clouds"]
@@ -46,14 +46,14 @@ test_dataloader = None
 test_evaluator = None
 test_cfg = None
 
-total_images = 1000
-batch_size = 20
-per_epoch_iters = int(total_images // batch_size)
+total_images_train = 800
+batch_size = 64
+per_epoch_iters = int(total_images_train // batch_size)
 epochs = 100
 train_cfg = dict(
     max_iters=epochs * per_epoch_iters,
     type="IterBasedTrainLoop",
-    val_interval=per_epoch_iters,
+    val_interval=10 * per_epoch_iters,
 )
 
 meta_keys = (
@@ -87,7 +87,7 @@ val_dataloader = dict(
     dataset=dict(
         _delete_=True,
         type=dataset_type,
-        data_folder=data_root + "/valid",
+        data_folder=data_root + "/val",
         tile_size=tile_size,
         pipeline=val_pipeline,
     )
@@ -110,7 +110,7 @@ default_hooks = dict(
     checkpoint=dict(
         by_epoch=False, interval=per_epoch_iters * 5, type="CheckpointHook"
     ),
-    logger=dict(interval=10, log_metric_by_epoch=False, type="LoggerHook"),
+    logger=dict(interval=1, log_metric_by_epoch=False, type="LoggerHook"),
     param_scheduler=dict(type="ParamSchedulerHook"),
     sampler_seed=dict(type="DistSamplerSeedHook"),
     timer=dict(type="IterTimerHook"),
