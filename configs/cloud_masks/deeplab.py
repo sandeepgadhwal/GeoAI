@@ -114,7 +114,12 @@ default_hooks = dict(
     param_scheduler=dict(type="ParamSchedulerHook"),
     sampler_seed=dict(type="DistSamplerSeedHook"),
     timer=dict(type="IterTimerHook"),
-    visualization=dict(type="CustomSegVisualizationHook", draw=True, interval=10),
+    visualization=dict(
+        type="CustomSegVisualizationHook",
+        draw=True,
+        interval=10,
+        backend_args={"percent_clip": 5},
+    ),
 )
 
 optimizer = dict(lr=0.01, momentum=0.9, type="SGD", weight_decay=0.0005)

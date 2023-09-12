@@ -32,6 +32,11 @@ class CustomSegVisualizationHook(SegVisualizationHook):
         if self.draw is False or mode == "train":
             return
 
+        if self.backend_args is None:
+            percent_clip = 0
+        else:
+            percent_clip = self.backend_args.get("percent_clip", 0)
+
         if self.every_n_inner_iters(batch_idx, self.interval):
             for i, output in enumerate(outputs):
                 # try:
@@ -44,13 +49,18 @@ class CustomSegVisualizationHook(SegVisualizationHook):
                 img = np.transpose(img, (1, 2, 0))
 
                 # Get min max percentiles for clip normalization
-                min, max = np.percentile(img.reshape(-1, 3), [2, 98], axis=0)
+                min, max = np.percentile(
+                    img.reshape(-1, 3), [percent_clip, 100 - percent_clip], axis=0
+                )
 
                 # Min max normalization
                 img = (img - min) / (max - min)
 
                 # Clip outliers
                 img = np.clip(img, 0, 1)
+
+                # Convert image to uint8 range
+                img = (img * 255).astype(np.uint8)
 
                 srcWin_ = "_".join([str(x) for x in img_meta["srcWin"]])
                 window_name = f"""{mode}_{output.img_path.stem}_{srcWin_}"""
