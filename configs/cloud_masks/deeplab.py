@@ -108,7 +108,7 @@ visualizer = dict(
 
 default_hooks = dict(
     checkpoint=dict(
-        by_epoch=False, interval=per_epoch_iters * 5, type="CheckpointHook"
+        by_epoch=False, interval=per_epoch_iters * 10, type="CheckpointHook"
     ),
     logger=dict(interval=1, log_metric_by_epoch=False, type="LoggerHook"),
     param_scheduler=dict(type="ParamSchedulerHook"),

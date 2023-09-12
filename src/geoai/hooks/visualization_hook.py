@@ -34,25 +34,39 @@ class CustomSegVisualizationHook(SegVisualizationHook):
 
         if self.every_n_inner_iters(batch_idx, self.interval):
             for i, output in enumerate(outputs):
-                try:
-                    img_meta = data_batch["data_samples"][i].img_meta
-                    img = Image.from_meta(img_meta).ds.ReadAsArray()
-                    img = np.transpose(img, (1, 2, 0))
-                    srcWin_ = "_".join([str(x) for x in img_meta["srcWin"]])
-                    window_name = f"""{mode}_{output.img_path.stem}_{srcWin_}"""
+                # try:
+                img_meta = data_batch["data_samples"][i].img_meta
 
-                    self._visualizer.add_datasample(
-                        window_name,
-                        img,
-                        data_sample=output,
-                        show=self.show,
-                        wait_time=self.wait_time,
-                        step=runner.iter,
-                    )
-                except Exception as e:
-                    print(e)
+                # Read Image
+                img = Image.from_meta(img_meta).ds.ReadAsArray()
 
-                    # Standard Library
-                    import pdb
+                # Image to channel last
+                img = np.transpose(img, (1, 2, 0))
 
-                    pdb.set_trace()
+                # Get min max percentiles for clip normalization
+                min, max = np.percentile(img.reshape(-1, 3), [2, 98], axis=0)
+
+                # Min max normalization
+                img = (img - min) / (max - min)
+
+                # Clip outliers
+                img = np.clip(img, 0, 1)
+
+                srcWin_ = "_".join([str(x) for x in img_meta["srcWin"]])
+                window_name = f"""{mode}_{output.img_path.stem}_{srcWin_}"""
+
+                self._visualizer.add_datasample(
+                    window_name,
+                    img,
+                    data_sample=output,
+                    show=self.show,
+                    wait_time=self.wait_time,
+                    step=runner.iter,
+                )
+                # except Exception as e:
+                #     print(e)
+
+                #     # Standard Library
+                #     import pdb
+
+                #     pdb.set_trace()
