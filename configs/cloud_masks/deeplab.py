@@ -46,14 +46,15 @@ test_dataloader = None
 test_evaluator = None
 test_cfg = None
 
-total_images_train = 800
+tiles_per_image = int(1000 / tile_size) ** 2
+total_images_train = 1000 * tiles_per_image
 batch_size = 64
 per_epoch_iters = int(total_images_train // batch_size)
 epochs = 1000
 train_cfg = dict(
     max_iters=epochs * per_epoch_iters,
     type="IterBasedTrainLoop",
-    val_interval=10 * per_epoch_iters,
+    val_interval=50 * per_epoch_iters,
 )
 
 meta_keys = (
@@ -74,9 +75,11 @@ train_dataloader = dict(
     dataset=dict(
         _delete_=True,
         type=dataset_type,
-        data_folder=data_root + "/train",
+        data_folder="/home/sandeep/workspace/competitions/MaskingCloudsinSatelliteImageries/data",
         tile_size=tile_size,
         pipeline=train_pipeline,
+        image_dir="train_true_color",
+        mask_dir="train_mask",
     ),
     num_workers=12,
     batch_size=batch_size,
